@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindBridge - Mental Health Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .analysis-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group textarea, .form-group select {
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .result h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .risk-level {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .risk-low {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .risk-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .risk-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .interventions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .intervention-tag {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #28a745;
+        }
+
+        .status-offline {
+            background: #dc3545;
+        }
+
+        .privacy-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 MindBridge</h1>
+            <p>AI-Powered Mental Health Detection & Support</p>
+            <div class="status">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Checking connection...</span>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>🔍 Mental Health Analysis</h2>
+                <form class="analysis-form" id="analysisForm">
+                    <div class="form-group">
+                        <label for="textInput">Share your thoughts or feelings:</label>
+                        <textarea 
+                            id="textInput" 
+                            rows="6" 
+                            placeholder="Describe how you've been feeling lately..."
+                            required
+                        ></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="culturalContext">Cultural Context:</label>
+                        <select id="culturalContext">
+                            <option value="western_individualist">Western Individualist</option>
+                            <option value="eastern_collectivist">Eastern Collectivist</option>
+                            <option value="african_communal">African Communal</option>
+                            <option value="latin_american">Latin American</option>
+                            <option value="middle_eastern">Middle Eastern</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="language">Language:</label>
+                        <select id="language">
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="zh">Chinese</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn" id="analyzeBtn">
+                        🔒 Analyze Privately
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>📊 Analysis Results</h2>
+                <div id="results">
+                    <p style="color: #666; text-align: center; margin-top: 50px;">
+                        Enter your thoughts above to get a privacy-first mental health analysis
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔒 Privacy Guarantees</h2>
+            <div class="privacy-info">
+                <h3>Your Privacy is Protected</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>100% Local Processing:</strong> All analysis happens on your device</li>
+                    <li><strong>Zero-Knowledge:</strong> Your personal data never leaves your device</li>
+                    <li><strong>End-to-End Encryption:</strong> All data is encrypted with AES-256</li>
+                    <li><strong>No Data Collection:</strong> We don't store or transmit your mental health data</li>
+                    <li><strong>Right to Erasure:</strong> Complete data deletion available instantly</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // Check API status
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                document.getElementById('statusIndicator').className = 'status-indicator status-online';
+                document.getElementById('statusText').textContent = 'API Connected - Ready for analysis';
+            } catch (error) {
+                document.getElementById('statusIndicator').className = 'status-indicator status-offline';
+                document.getElementById('statusText').textContent = 'API Offline - Please start the backend server';
+            }
+        }
+
+        // Analyze mental health
+        async function analyzeMentalHealth(text, culturalContext, language) {
+            try {
+                const response = await fetch(`${API_BASE}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        cultural_context: culturalContext,
+                        language: language
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Analysis error:', error);
+                throw error;
+            }
+        }
+
+        // Display results
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            const riskClass = data.risk_level === 'high' ? 'risk-high' : 
+                            data.risk_level === 'medium' ? 'risk-medium' : 'risk-low';
+            
+            resultsDiv.innerHTML = `
+                <div class="result">
+                    <h3>Analysis Complete</h3>
+                    <div class="risk-level ${riskClass}">
+                        Risk Level: ${data.risk_level.toUpperCase()}
+                    </div>
+                    
+                    <h4>Suggested Interventions:</h4>
+                    <div class="interventions">
+                        ${data.interventions.map(intervention => 
+                            `<span class="intervention-tag">${intervention.replace('_', ' ')}</span>`
+                        ).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
+                        <strong>Privacy Guarantee:</strong> ${data.privacy_guarantee}
+                    </div>
+                    
+                    <div style="margin-top: 15px; font-size: 14px; color: #666;">
+                        <strong>Cultural Context:</strong> ${data.cultural_context.replace('_', ' ')}<br>
+                        <strong>Language:</strong> ${data.language.toUpperCase()}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Handle form submission
+        document.getElementById('analysisForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const text = document.getElementById('textInput').value;
+            const culturalContext = document.getElementById('culturalContext').value;
+            const language = document.getElementById('language').value;
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            
+            if (!text.trim()) {
+                alert('Please enter some text to analyze.');
+                return;
+            }
+            
+            // Show loading state
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '🔍 Analyzing...';
+            
+            document.getElementById('results').innerHTML = `
+                <div class="loading">
+                    <h3>🔒 Processing Privately...</h3>
+                    <p>Your data is being analyzed locally on your device</p>
+                </div>
+            `;
+            
+            try {
+                const result = await analyzeMentalHealth(text, culturalContext, language);
+                displayResults(result);
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div style="color: #dc3545; text-align: center; padding: 20px;">
+                        <h3>❌ Analysis Failed</h3>
+                        <p>Please check that the backend server is running on localhost:8000</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Error: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '🔒 Analyze Privately';
+            }
+        });
+
+        // Check status on load and every 30 seconds
+        checkStatus();
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mindbridge-backend:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PRIVACY_LEVEL=maximum
+      - MODEL_SIZE=small
+      - QUANTIZATION_ENABLED=true
+      - DIFFERENTIAL_PRIVACY_EPSILON=1.0
+    volumes:
+      - mindbridge-data:/app/data
+      - mindbridge-models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  mindbridge-web:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.web
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_PRIVACY_MODE=true
+    depends_on:
+      - mindbridge-backend
+    restart: unless-stopped
+
+volumes:
+  mindbridge-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./data
+      o: bind
+  mindbridge-models:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./models
+      o: bind
+
+networks:
+  default:
+    name: mindbridge-network
