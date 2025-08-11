@@ -4,10 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import { Box } from '@mui/material'
 import { motion } from 'framer-motion'
 
-import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import Analytics from './pages/Analytics'
-import Users from './pages/Users'
+import PersonalDashboard from './pages/PersonalDashboard'
 import Interventions from './pages/Interventions'
 import Privacy from './pages/Privacy'
 import Settings from './pages/Settings'
@@ -30,10 +27,10 @@ function App() {
   return (
     <>
       <Helmet>
-        <title>MindBridge - Mental Health Analytics Dashboard</title>
+        <title>MindBridge - Votre Compagnon de Bien-être Mental</title>
         <meta
           name="description"
-          content="Professional dashboard for mental health analytics, privacy-preserving insights, and intervention tracking."
+          content="Votre espace privé pour le suivi de votre bien-être mental. 100% privé, 100% local, pour votre sérénité."
         />
       </Helmet>
 
@@ -42,19 +39,15 @@ function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/users" element={<Users />} />
-              <Route path="/interventions" element={<Interventions />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
+        <Box sx={{ minHeight: '100vh' }}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<PersonalDashboard />} />
+            <Route path="/interventions" element={<Interventions />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </Box>
       </motion.div>
     </>

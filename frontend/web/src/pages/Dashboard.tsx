@@ -26,7 +26,7 @@ import {
   People,
   CheckCircle,
   Info,
-  Emergency,
+  LocalHospital,
   Analytics,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
@@ -269,7 +269,7 @@ const Dashboard: React.FC = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Button
                     variant="contained"
-                    startIcon={<Emergency />}
+                    startIcon={<LocalHospital />}
                     color="error"
                     fullWidth
                   >

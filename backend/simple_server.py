@@ -1,19 +1,53 @@
 """
-MindBridge Simple Demo Server
+MindBridge AI-Powered Server
+Intègre les vrais modèles d'IA pour l'analyse de santé mentale
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from datetime import datetime
 import uvicorn
-import random
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
+# Import du moteur IA
+from ai_engine import get_mental_health_ai, MentalHealthAI
+
+# Configuration logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Instance globale IA
+ai_engine: MentalHealthAI = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gestion du cycle de vie de l'application"""
+    global ai_engine
+    
+    # Startup - Initialisation des modèles IA
+    logger.info("🧠 Initialisation des modèles d'IA MindBridge...")
+    try:
+        ai_engine = get_mental_health_ai()
+        logger.info("✅ Modèles d'IA chargés avec succès")
+    except Exception as e:
+        logger.error(f"❌ Erreur chargement modèles IA: {e}")
+        ai_engine = None
+    
+    yield
+    
+    # Shutdown
+    logger.info("🔄 Arrêt du serveur MindBridge...")
+    ai_engine = None
 
 app = FastAPI(
-    title="MindBridge API Demo",
-    description="Demo API for MindBridge Mental Health Platform",
-    version="1.0.0"
+    title="MindBridge AI API",
+    description="AI-Powered Mental Health Analysis API",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -32,60 +66,82 @@ class AnalysisRequest(BaseModel):
 
 @app.get("/health")
 async def health_check():
+    global ai_engine
+    
+    ai_status = ai_engine.get_model_status() if ai_engine else {
+        "ready": False,
+        "models_loaded": {},
+        "device": "cpu"
+    }
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if ai_status.get("ready", False) else "degraded",
         "timestamp": datetime.now().isoformat(),
         "services": {
-            "mental_health_engine": "running",
-            "privacy_manager": "running",
-            "gpt_wrapper": "running"
+            "ai_engine": "running" if ai_engine else "failed",
+            "mental_health_analysis": "ready" if ai_status.get("ready", False) else "loading",
+            "privacy_manager": "running"
         },
+        "ai_models": ai_status.get("models_loaded", {}),
+        "device": ai_status.get("device", "cpu"),
         "privacy_level": "maximum",
-        "model_loaded": True
+        "model_loaded": ai_status.get("ready", False)
     }
 
 @app.post("/api/analyze")
-async def analyze_text(request: AnalysisRequest):
-    # Simulate analysis based on text sentiment
-    text_lower = request.text.lower()
+async def analyze_text(request: AnalysisRequest, background_tasks: BackgroundTasks):
+    """Analyse de santé mentale avec IA avancée"""
+    global ai_engine
     
-    # Simple keyword-based analysis
-    depression_words = ['sad', 'depressed', 'hopeless', 'empty', 'worthless']
-    anxiety_words = ['anxious', 'worried', 'panic', 'scared', 'nervous']
+    if not ai_engine:
+        raise HTTPException(
+            status_code=503, 
+            detail="Moteur IA non disponible - utilisation du mode fallback"
+        )
     
-    depression_score = sum(0.2 for word in depression_words if word in text_lower)
-    anxiety_score = sum(0.2 for word in anxiety_words if word in text_lower)
-    
-    overall_risk = min((depression_score + anxiety_score) / 2, 1.0)
-    
-    if overall_risk < 0.25:
-        risk_level = "low"
-    elif overall_risk < 0.5:
-        risk_level = "moderate"  
-    elif overall_risk < 0.75:
-        risk_level = "high"
-    else:
-        risk_level = "critical"
-    
-    return {
-        "overall_risk_score": max(overall_risk, 0.1),
-        "risk_level": risk_level,
-        "condition_probabilities": {
-            "depression": min(depression_score, 1.0),
-            "anxiety": min(anxiety_score, 1.0),
-            "ptsd": random.uniform(0.05, 0.15),
-            "bipolar": random.uniform(0.05, 0.15),
-            "burnout": random.uniform(0.1, 0.3)
-        },
-        "confidence_score": random.uniform(0.7, 0.9),
-        "privacy_protected": True,
-        "processing_time_ms": random.randint(80, 120),
-        "suggestions": [
-            "Exercices de respiration recommandés",
-            "Considérer un check-in quotidien",
-            "Techniques de mindfulness disponibles"
-        ]
-    }
+    try:
+        # Validation de l'input
+        if not request.text or len(request.text.strip()) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Texte trop court pour une analyse fiable (minimum 10 caractères)"
+            )
+        
+        # Log de l'analyse (anonymisé)
+        logger.info(f"🔍 Analyse en cours - Longueur: {len(request.text)} caractères")
+        
+        # Analyse avec le moteur IA
+        result = await ai_engine.analyze_mental_health(
+            text=request.text,
+            cultural_context=request.cultural_context,
+            language=request.language
+        )
+        
+        # Ajout de métadonnées pour l'API
+        result.update({
+            "privacy_protected": True,
+            "timestamp": datetime.now().isoformat(),
+            "api_version": "1.0.0",
+            "analysis_id": f"anon_{hash(request.text[:50]) % 10000:04d}"
+        })
+        
+        # Log du résultat (anonymisé)
+        background_tasks.add_task(
+            log_analysis_result,
+            risk_score=result.get('overall_risk_score', 0.0),
+            risk_level=result.get('risk_level', 'moderate'),
+            processing_time=result.get('processing_time_ms', 0),
+            ai_powered=result.get('ai_powered', False)
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erreur analyse: {e}")
+        # Fallback vers analyse simple
+        return await fallback_analysis(request)
 
 @app.get("/api/stats")
 async def get_stats():
@@ -157,6 +213,84 @@ async def get_dashboard_data():
         ]
     }
 
+async def log_analysis_result(risk_score: float, risk_level: str, processing_time: int, ai_powered: bool):
+    """Log des résultats d'analyse (anonymisé)"""
+    logger.info(
+        f"📊 Analyse terminée - Risque: {risk_level} ({risk_score:.3f}), "
+        f"Temps: {processing_time}ms, IA: {ai_powered}"
+    )
+
+async def fallback_analysis(request: AnalysisRequest) -> Dict[str, Any]:
+    """Analyse de fallback en cas d'erreur IA"""
+    import random
+    
+    text_lower = request.text.lower()
+    
+    # Analyse simple par mots-clés
+    depression_words = ['triste', 'déprim', 'vide', 'inutile', 'sad', 'depressed', 'hopeless', 'empty']
+    anxiety_words = ['anxie', 'stress', 'inquiet', 'peur', 'anxious', 'worried', 'panic', 'scared']
+    
+    depression_score = sum(0.2 for word in depression_words if word in text_lower)
+    anxiety_score = sum(0.2 for word in anxiety_words if word in text_lower)
+    
+    overall_risk = min((depression_score + anxiety_score) / 2, 1.0)
+    
+    if overall_risk < 0.25:
+        risk_level = "low"
+    elif overall_risk < 0.5:
+        risk_level = "moderate"  
+    elif overall_risk < 0.75:
+        risk_level = "high"
+    else:
+        risk_level = "critical"
+    
+    return {
+        "overall_risk_score": max(overall_risk, 0.1),
+        "risk_level": risk_level,
+        "condition_probabilities": {
+            "depression": min(depression_score, 1.0),
+            "anxiety": min(anxiety_score, 1.0),
+            "ptsd": random.uniform(0.05, 0.15),
+            "bipolar": random.uniform(0.05, 0.15),
+            "burnout": random.uniform(0.1, 0.3)
+        },
+        "confidence_score": 0.4,  # Faible confiance pour fallback
+        "privacy_protected": True,
+        "processing_time_ms": random.randint(20, 50),
+        "ai_powered": False,
+        "suggestions": [
+            "⚠️ Analyse simplifiée utilisée",
+            "🔄 Modèles IA en cours de chargement",
+            "💬 Contactez le support si le problème persiste"
+        ],
+        "fallback_mode": True
+    }
+
+@app.get("/api/ai-status")
+async def get_ai_status():
+    """Status détaillé des modèles IA"""
+    global ai_engine
+    
+    if not ai_engine:
+        return {
+            "ai_engine_loaded": False,
+            "models": {},
+            "ready": False,
+            "message": "Modèles IA en cours d'initialisation..."
+        }
+    
+    status = ai_engine.get_model_status()
+    return {
+        "ai_engine_loaded": True,
+        "models": status.get("models_loaded", {}),
+        "device": status.get("device", "cpu"),
+        "memory_usage": status.get("memory_usage", "N/A"),
+        "ready": status.get("ready", False),
+        "message": "Modèles IA opérationnels" if status.get("ready", False) else "Modèles en cours de chargement..."
+    }
+
 if __name__ == "__main__":
-    print("🧠 Starting MindBridge Demo Server...")
+    print("🧠 Starting MindBridge AI Server...")
+    print("🤖 Chargement des modèles Hugging Face...")
+    print("⏳ Cela peut prendre quelques minutes au premier démarrage...")
     uvicorn.run(app, host="localhost", port=8001, log_level="info")
